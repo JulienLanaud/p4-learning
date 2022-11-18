@@ -30,7 +30,7 @@ parser MyParser(packet_in packet,
 *************************************************************************/
 
 control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
-    apply {  }
+    apply { }
 }
 
 
@@ -46,7 +46,6 @@ control MyIngress(inout headers hdr,
     /* TODO 2: For solution 2 -> define an action that modifies the egress_port */
 
     apply {
-
         /* TODO 3:*/
         /* Solution 1: Without tables, write the algorithm directly here*/
         if (standard_metadata.ingress_port == 1) {
@@ -55,7 +54,6 @@ control MyIngress(inout headers hdr,
             standard_metadata.egress_spec = 1;
         }
         /* Solution 2: Apply the table you use */
-
     }
 }
 
@@ -66,7 +64,7 @@ control MyIngress(inout headers hdr,
 control MyEgress(inout headers hdr,
                  inout metadata meta,
                  inout standard_metadata_t standard_metadata) {
-    apply {  }
+    apply { }
 }
 
 /*************************************************************************
@@ -83,9 +81,7 @@ control MyComputeChecksum(inout headers  hdr, inout metadata meta) {
 
 control MyDeparser(packet_out packet, in headers hdr) {
     apply {
-
-    /* Deparser not needed */
-
+        /* Deparser not needed */
     }
 }
 

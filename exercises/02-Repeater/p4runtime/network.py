@@ -10,7 +10,7 @@ net.enableCli()
 
 # Network definition
 net.addP4RuntimeSwitch('s1')
-net.setP4Source('s1','repeater.p4')
+net.setP4Source('s1','repeater2.p4')
 net.addHost('h1')
 net.addHost('h2')
 net.addLink('s1', 'h1')

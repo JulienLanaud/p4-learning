@@ -1,5 +1,5 @@
 {
-  "p4_src": "repeater.p4",
+  "p4_src": "repeater2.p4",
   "cli": true,
   "pcap_dump": true,
   "enable_log": true,
