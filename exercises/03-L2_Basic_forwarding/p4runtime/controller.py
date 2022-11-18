@@ -13,3 +13,9 @@ for switch, data in topo.get_p4rtswitches().items():
 controller = controllers['s1']                        
 
 # TODO: write the forwarding rules for the switch
+controller.table_clear('my_table')
+
+controller.table_add('my_table', 'my_action', ['00:00:0a:00:00:01'], ['1'])
+controller.table_add('my_table', 'my_action', ['00:00:0a:00:00:02'], ['2'])
+controller.table_add('my_table', 'my_action', ['00:00:0a:00:00:03'], ['3'])
+controller.table_add('my_table', 'my_action', ['00:00:0a:00:00:04'], ['4'])
