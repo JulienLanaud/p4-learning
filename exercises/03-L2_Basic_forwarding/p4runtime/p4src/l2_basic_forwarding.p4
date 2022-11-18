@@ -53,7 +53,6 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
-
     action drop() {
         mark_to_drop(standard_metadata);
     }
@@ -70,7 +69,7 @@ control MyIngress(inout headers hdr,
             my_action;
             NoAction;
         }
-        size = 2;
+        size = 4;
         default_action = NoAction;
     }
 

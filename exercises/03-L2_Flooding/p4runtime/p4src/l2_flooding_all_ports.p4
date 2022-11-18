@@ -35,7 +35,6 @@ parser MyParser(packet_in packet,
                 out headers hdr,
                 inout metadata meta,
                 inout standard_metadata_t standard_metadata) {
-
     state start {
         packet.extract(hdr.ethernet);
         transition accept;
@@ -48,7 +47,7 @@ parser MyParser(packet_in packet,
 *************************************************************************/
 
 control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
-    apply {  }
+    apply { }
 }
 
 
@@ -59,21 +58,34 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
-
     action drop() {
-
         mark_to_drop(standard_metadata);
     }
 
-    //TODO 3: define a forwarding match-action table like the one from l2 basic forwarding
-
-    //TODO 4: Add a broadcast action to the action list and set it as default
+    action my_action(bit<9> egress_port) {
+        standard_metadata.egress_spec = egress_port;
+    }
 
     //TODO 5: define the broadcast action
+    action my_broadcast() {
+        standard_metadata.mcast_grp = 1;
+    }
 
+    //TODO 3: define a forwarding match-action table like the one from l2 basic forwarding
+    //TODO 4: Add a broadcast action to the action list and set it as default
+    table my_table {
+        key = { hdr.ethernet.dstAddr: exact; }
+        actions = {
+            my_action;
+            my_broadcast;
+            NoAction;
+        }
+        // size = 4;
+        default_action = my_broadcast;
+    }
 
     apply {
-        //TODO 6: apply your table
+        my_table.apply();
     }
 }
 
@@ -86,7 +98,7 @@ control MyEgress(inout headers hdr,
                  inout standard_metadata_t standard_metadata) {
 
 
-    apply {  }
+    apply { }
 }
 
 /*************************************************************************
@@ -94,9 +106,7 @@ control MyEgress(inout headers hdr,
 *************************************************************************/
 
 control MyComputeChecksum(inout headers hdr, inout metadata meta) {
-     apply {
-
-    }
+    apply { }
 }
 
 
