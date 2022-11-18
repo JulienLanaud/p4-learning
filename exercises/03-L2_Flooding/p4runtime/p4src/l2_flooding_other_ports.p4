@@ -49,7 +49,7 @@ parser MyParser(packet_in packet,
 *************************************************************************/
 
 control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
-    apply {  }
+    apply { }
 }
 
 
@@ -60,21 +60,49 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
-
     action drop() {
-
         mark_to_drop(standard_metadata);
     }
 
     //TODO 2: define a forwarding match-action table like the one from the previous exercise. This time you can remove
     //        the broadcast action, or make it empty.
+    action my_action(bit<9> egress_port) {
+        standard_metadata.egress_spec = egress_port;
+    }
+
+    action set_mcast_grp(bit<16> grp) {
+        standard_metadata.mcast_grp = grp;
+    }
+
+    table my_table {
+        key = { hdr.ethernet.dstAddr: exact; }
+        actions = {
+            my_action;
+            NoAction;
+        }
+        // size = 4;
+        default_action = NoAction;
+    }
 
     //TODO 3: define a new match-action table that matches to the ingress_port and calls an action to set the multicast group
+    table mcast_table {
+        key = { standard_metadata.ingress_port: exact; }
+        actions = {
+            set_mcast_grp;
+            NoAction;
+        }
+        // size = 4;
+        default_action = NoAction;
+    }
 
     apply {
         //TODO 5: Build your control logic: apply the normal forwarding table,
         //        if there is a miss apply the second table to set the multicast group.
-
+        switch (my_table.apply().action_run) {
+            NoAction: {
+                mcast_table.apply();
+            }
+        }
     }
 }
 
@@ -85,9 +113,7 @@ control MyIngress(inout headers hdr,
 control MyEgress(inout headers hdr,
                  inout metadata meta,
                  inout standard_metadata_t standard_metadata) {
-
-
-    apply {  }
+    apply { }
 }
 
 /*************************************************************************
@@ -95,9 +121,7 @@ control MyEgress(inout headers hdr,
 *************************************************************************/
 
 control MyComputeChecksum(inout headers hdr, inout metadata meta) {
-     apply {
-
-    }
+    apply { }
 }
 
 

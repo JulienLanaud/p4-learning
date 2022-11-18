@@ -23,12 +23,28 @@ interfaces_to_port.pop('lo', None)
 interfaces_to_port.pop(topo.get_cpu_port_intf(sw_name), None)
 port_list = list(interfaces_to_port.values())
 
+controller.table_clear('my_table')
+
+controller.table_add("my_table", "my_action", ['00:00:0a:00:00:01'], ['1'])
+controller.table_add("my_table", "my_action", ['00:00:0a:00:00:02'], ['2'])
+controller.table_add("my_table", "my_action", ['00:00:0a:00:00:03'], ['3'])
+controller.table_add("my_table", "my_action", ['00:00:0a:00:00:04'], ['4'])
+
+controller.table_clear('mcast_table')
+
 # Iterate over switch ports
 mc_grp_id = 1
 for ingress_port in interfaces_to_port.values():
     # TODO: add broadcast groups with custom ports
+    controller.mc_mgrp_create(
+        mc_grp_id,
+        [p for p in port_list if ingress_port != p])
     # TODO: populate select_mcast_grp table
-
+    controller.table_add(
+        "mcast_table",
+        "set_mcast_grp",
+        [str(ingress_port)],
+        [str(mc_grp_id)])
 
     mc_grp_id +=1
 
