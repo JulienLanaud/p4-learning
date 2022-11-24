@@ -6,6 +6,7 @@
 const bit<16> TYPE_IPV4 = 0x0800;
 
 /* TODO 1.1: Create a new etherType for the MPLS protocol, which will be used to identify the protocol from the ethernet header.  */
+const bit<16> TYPE_MPLS = 0x8847;
 
 #define CONST_MAX_LABELS 	128
 #define CONST_MAX_MPLS_HOPS 8
@@ -26,6 +27,12 @@ header ethernet_t {
 }
 
 /* TODO 1.2: Create a header for MPLS protocol, called "mpls_t". */
+header mpls_t {
+    bit<20> label;
+    bit<3>  exp;
+    bit<1>  s;
+    bit<8>  ttl;
+}
 
 header ipv4_t {
     bit<4>    version;
@@ -48,11 +55,12 @@ struct metadata {
 }
 
 struct headers {
-    ethernet_t                      ethernet;
+    ethernet_t                  ethernet;
 
     /* TODO 1.4: Add the newly-defined "mpls_t[CONST_MAX_MPLS_HOPS]" header to the struct "headers". Note how "[CONST_MAX_MPLS_HOPS]" is used to represent a header stack. */
+    mpls_t[CONST_MAX_MPLS_HOPS] mpls;
 
-    ipv4_t                          ipv4;
+    ipv4_t                      ipv4;
 }
 
 /*************************************************************************
@@ -73,6 +81,7 @@ parser MyParser(packet_in packet,
         transition select(hdr.ethernet.etherType) {
 
             /* TODO 1.5: Call the MPLS parser in case the etherType "TYPE_MPLS" is detected. */
+            TYPE_MPLS: parse_mpls;
 
             TYPE_IPV4: parse_ipv4;
             default: accept;
@@ -80,6 +89,13 @@ parser MyParser(packet_in packet,
     }
 
     /* TODO 1.6: Create a parser that extracts all the layers of the MPLS header stack, transitioning to `parse_ipv4` with the detection of the bottom of stack flag in a layer. */
+    state parse_mpls {
+        packet.extract(hdr.mpls.next);
+        transition select(hdr.mpls.last.s) {
+            1: parse_ipv4;
+            0: parse_mpls;
+        }
+    }
 
     state parse_ipv4 {
         packet.extract(hdr.ipv4);
@@ -118,17 +134,115 @@ control MyIngress(inout headers hdr,
     }
 
     action mpls_ingress_1_hop(label_t label_1) {
-
         hdr.ethernet.etherType = TYPE_MPLS;
 
         hdr.mpls.push_front(1);
         hdr.mpls[0].setValid();
         hdr.mpls[0].label = label_1;
-        hdr.mpls[0].ttl = CONST_MAX_MPLS_HOPS;
+        hdr.mpls[0].ttl = hdr.ipv4.ttl - 1;
         hdr.mpls[0].s = 1;
     }
 
     /* TODO 2.1: Create the action "mpls_ingress_2_hop" ... "mpls_ingress_5_hop". */
+    action mpls_ingress_2_hop(label_t label_1, label_t label_2) {
+        hdr.ethernet.etherType = TYPE_MPLS;
+
+        hdr.mpls.push_front(1);
+        hdr.mpls[0].setValid();
+        hdr.mpls[0].label = label_1;
+        hdr.mpls[0].ttl = hdr.ipv4.ttl - 1;
+        hdr.mpls[0].s = 1;
+
+        hdr.mpls.push_front(1);
+        hdr.mpls[0].setValid();
+        hdr.mpls[0].label = label_2;
+        hdr.mpls[0].ttl = hdr.ipv4.ttl - 1;
+        hdr.mpls[0].s = 0;
+    }
+
+    action mpls_ingress_3_hop(label_t label_1, label_t label_2, label_t label_3) {
+        hdr.ethernet.etherType = TYPE_MPLS;
+
+        hdr.mpls.push_front(1);
+        hdr.mpls[0].setValid();
+        hdr.mpls[0].label = label_1;
+        hdr.mpls[0].ttl = hdr.ipv4.ttl - 1;
+        hdr.mpls[0].s = 1;
+
+        hdr.mpls.push_front(1);
+        hdr.mpls[0].setValid();
+        hdr.mpls[0].label = label_2;
+        hdr.mpls[0].ttl = hdr.ipv4.ttl - 1;
+        hdr.mpls[0].s = 0;
+
+        hdr.mpls.push_front(1);
+        hdr.mpls[0].setValid();
+        hdr.mpls[0].label = label_3;
+        hdr.mpls[0].ttl = hdr.ipv4.ttl - 1;
+        hdr.mpls[0].s = 0;
+    }
+
+    action mpls_ingress_4_hop(label_t label_1, label_t label_2, label_t label_3, label_t label_4) {
+        hdr.ethernet.etherType = TYPE_MPLS;
+
+        hdr.mpls.push_front(1);
+        hdr.mpls[0].setValid();
+        hdr.mpls[0].label = label_1;
+        hdr.mpls[0].ttl = hdr.ipv4.ttl - 1;
+        hdr.mpls[0].s = 1;
+
+        hdr.mpls.push_front(1);
+        hdr.mpls[0].setValid();
+        hdr.mpls[0].label = label_2;
+        hdr.mpls[0].ttl = hdr.ipv4.ttl - 1;
+        hdr.mpls[0].s = 0;
+
+        hdr.mpls.push_front(1);
+        hdr.mpls[0].setValid();
+        hdr.mpls[0].label = label_3;
+        hdr.mpls[0].ttl = hdr.ipv4.ttl - 1;
+        hdr.mpls[0].s = 0;
+
+        hdr.mpls.push_front(1);
+        hdr.mpls[0].setValid();
+        hdr.mpls[0].label = label_4;
+        hdr.mpls[0].ttl = hdr.ipv4.ttl - 1;
+        hdr.mpls[0].s = 0;
+    }
+
+    action mpls_ingress_5_hop(label_t label_1, label_t label_2, label_t label_3, label_t label_4, label_t label_5) {
+        hdr.ethernet.etherType = TYPE_MPLS;
+
+        hdr.mpls.push_front(1);
+        hdr.mpls[0].setValid();
+        hdr.mpls[0].label = label_1;
+        hdr.mpls[0].ttl = hdr.ipv4.ttl - 1;
+        hdr.mpls[0].s = 1;
+
+        hdr.mpls.push_front(1);
+        hdr.mpls[0].setValid();
+        hdr.mpls[0].label = label_2;
+        hdr.mpls[0].ttl = hdr.ipv4.ttl - 1;
+        hdr.mpls[0].s = 0;
+
+        hdr.mpls.push_front(1);
+        hdr.mpls[0].setValid();
+        hdr.mpls[0].label = label_3;
+        hdr.mpls[0].ttl = hdr.ipv4.ttl - 1;
+        hdr.mpls[0].s = 0;
+
+        hdr.mpls.push_front(1);
+        hdr.mpls[0].setValid();
+        hdr.mpls[0].label = label_4;
+        hdr.mpls[0].ttl = hdr.ipv4.ttl - 1;
+        hdr.mpls[0].s = 0;
+
+        hdr.mpls.push_front(1);
+        hdr.mpls[0].setValid();
+        hdr.mpls[0].label = label_5;
+        hdr.mpls[0].ttl = hdr.ipv4.ttl - 1;
+        hdr.mpls[0].s = 0;
+    }
 
     table FEC_tbl {
         key = {
@@ -148,15 +262,22 @@ control MyIngress(inout headers hdr,
     }
 
     action mpls_forward(macAddr_t dstAddr, egressSpec_t port) {
-
         /* TODO 2.2.1: Fill the action "mpls_forward". */
-
+        standard_metadata.egress_spec = port;
+        hdr.ethernet.srcAddr = hdr.ethernet.dstAddr;
+        hdr.ethernet.dstAddr = dstAddr;
+        hdr.mpls[1].ttl = hdr.mpls[0].ttl - 1;
+        hdr.mpls.pop_front(1);
     }
 
     action penultimate(macAddr_t dstAddr, egressSpec_t port) {
-
         /* TODO 2.2.2: Fill the action "penultimate". */
-
+        hdr.ethernet.etherType = TYPE_IPV4;
+        standard_metadata.egress_spec = port;
+        hdr.ethernet.srcAddr = hdr.ethernet.dstAddr;
+        hdr.ethernet.dstAddr = dstAddr;
+        hdr.ipv4.ttl = hdr.mpls[0].ttl - 1;
+        hdr.mpls.pop_front(1);
     }
 
     table mpls_tbl {
@@ -176,7 +297,7 @@ control MyIngress(inout headers hdr,
     apply {
         /* Ingress Pipeline Control Logic */
         /* TODO 1.7 */
-        if(hdr.ipv4.isValid() && hdr.mpls[0].isInvalid()){
+        if(hdr.ipv4.isValid()){
             FEC_tbl.apply();
         }
         if(hdr.mpls[0].isValid()){

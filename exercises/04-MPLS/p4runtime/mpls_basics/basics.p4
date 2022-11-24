@@ -5,6 +5,7 @@
 const bit<16> TYPE_IPV4 = 0x800;
 
 /* TODO 1.1: Create a new etherType for MPLS protocol, which will be used to identify it from the ethernet header. */
+const bit<16> TYPE_MPLS = 0x8847;
 
 #define CONST_MAX_PORTS 	32
 #define CONST_MAX_LABELS 	10
@@ -24,6 +25,12 @@ header ethernet_t {
 }
 
 /* TODO 1.2: Create a header for MPLS protocol, called "mpls_t". The header should have 4 fields like we described in the README. */
+header mpls_t {
+    bit<20> label;
+    bit<3>  exp;
+    bit<1>  s;
+    bit<8>  ttl;
+}
 
 header ipv4_t {
     bit<4>    version;
@@ -50,8 +57,9 @@ struct metadata {
 /* TODO 1.3: Add the newly-defined "mpls_t" header to the struct "headers". The "mpls_t" header should go in between of "ethernet_t" and "ipv4_t". */
 
 struct headers {
-    ethernet_t              ethernet;
-    ipv4_t                  ipv4;
+    ethernet_t ethernet;
+    mpls_t     mpls;
+    ipv4_t     ipv4;
 }
 
 /*************************************************************************
@@ -72,6 +80,7 @@ parser MyParser(packet_in packet,
         transition select(hdr.ethernet.etherType) {
 
             /* TODO 1.5: Call the MPLS parser in case an MPLS packet is detected. */
+            TYPE_MPLS: parse_mpls;
             
             TYPE_IPV4: parse_ipv4;
             default: accept;
@@ -79,6 +88,10 @@ parser MyParser(packet_in packet,
     }
 
     /* TODO 1.4: Create a parser that extracts the MPLS header that you have created. */
+    state parse_mpls {
+        packet.extract(hdr.mpls);
+        transition parse_ipv4;
+    }
 
     state parse_ipv4 {
         packet.extract(hdr.ipv4);
@@ -108,8 +121,22 @@ control MyIngress(inout headers hdr,
     }
             
     /* TODO 2.3: Create the action set_is_ingress_border. */
+    action set_is_ingress_border() {
+        meta.is_ingress_border = (bit<1>)1;
+    }
 
     /* TODO 2.2: Create the table check_is_ingress_border. */
+    table check_is_ingress_border {
+        key = {
+            standard_metadata.ingress_port : exact;
+        }
+        actions = {
+            set_is_ingress_border;
+            NoAction;
+        }
+        default_action = NoAction;
+        size = CONST_MAX_PORTS;
+    }
 
     action add_mpls_header(bit<20> tag) {
 
@@ -120,6 +147,17 @@ control MyIngress(inout headers hdr,
     }
 
     /* TODO 2.5: Create the table fec_to_label. */
+    table fec_to_label {
+        key = {
+            hdr.ipv4.dstAddr : lpm;
+        }
+        actions = {
+            add_mpls_header;
+            NoAction;
+        }
+        default_action = NoAction;
+        size = CONST_MAX_LABELS;
+    }
 
     action mpls_forward(macAddr_t dstAddr, egressSpec_t port) {
         hdr.ethernet.srcAddr = hdr.ethernet.dstAddr;
@@ -130,40 +168,65 @@ control MyIngress(inout headers hdr,
     }
 
     /* TODO 3.2: Create the table mpls_tbl. */
+    table mpls_tbl {
+        key = {
+            hdr.mpls.label : exact;
+        }
+        actions = {
+            mpls_forward;
+            NoAction;
+        }
+        default_action = NoAction;
+        size = CONST_MAX_LABELS;
+    }
 
     /* TODO 3.5: Create the action ipv4_forward. */
+    action ipv4_forward(macAddr_t dstAddr, egressSpec_t port) {
+        hdr.ethernet.srcAddr = hdr.ethernet.dstAddr;
+        hdr.ethernet.dstAddr = dstAddr;
+
+        standard_metadata.egress_spec = port;
+        hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
+    }
 
     /* TODO 3.4: Create the table ipv4_lpm. */
+    table ipv4_lpm {
+        key = {
+            hdr.ipv4.dstAddr : lpm;
+        }
+        actions = {
+            ipv4_forward;
+            NoAction;
+        }
+        default_action = NoAction;
+    }
 
     apply {
+        // We check if it is an ingress border port
+        check_is_ingress_border.apply();
 
-            // We check if it is an ingress border port
-            check_is_ingress_border.apply();
-
-            if(meta.is_ingress_border == 1){
-
-                // We need to check if the header is valid since mpls label is based on dst ip
-                if(hdr.ipv4.isValid()){
-                    
-                    // We add the label based on the destination
-                    fec_to_label.apply();
-                }
+        if(meta.is_ingress_border == 1){
+            // We need to check if the header is valid since mpls label is based on dst ip
+            if(hdr.ipv4.isValid()){
+                // We add the label based on the destination
+                fec_to_label.apply();
             }
-            
-            /* TODO 3.1: Uncomment the following lines. */
+        }
+        
+        /* TODO 3.1: Uncomment the following lines. */
 
-            // We select the egress port based on the mpls label
-            //if(hdr.mpls.isValid()){
-            //    mpls_tbl.apply();
-            //}
+        // We select the egress port based on the mpls label
+        if(hdr.mpls.isValid()){
+            mpls_tbl.apply();
+        }
 
-            /* TODO 3.4 Uncomment the following lines. */
+        /* TODO 3.4 Uncomment the following lines. */
 
-            // Normal forwarding
-            //else if (hdr.ipv4.isValid())
-            //{
-            //   ipv4_lpm.apply();
-            //}
+        // Normal forwarding
+        else if (hdr.ipv4.isValid())
+        {
+          ipv4_lpm.apply();
+        }
 
     }
 }
@@ -176,8 +239,7 @@ control MyEgress(inout headers hdr,
                  inout metadata meta,
                  inout standard_metadata_t standard_metadata) {
     
-    action is_egress_border(){
-        
+    action is_egress_border() {
         // We remove the mpls header
         hdr.mpls.setInvalid();
         hdr.ethernet.etherType = TYPE_IPV4;
@@ -185,10 +247,21 @@ control MyEgress(inout headers hdr,
     }
 
     /* TODO 4.1: Create the table check_is_egress_border.  */
+    table check_is_egress_border {
+        key = {
+            standard_metadata.egress_port : exact;
+        }
+        actions = {
+            is_egress_border;
+            NoAction;
+        }
+        default_action = NoAction;
+        size = CONST_MAX_PORTS;
+    }
 
     apply { 
         // We check if it is an egress border port
-        if (hdr.mpls.isValid()){
+        if (hdr.mpls.isValid()) {
             check_is_egress_border.apply();
         }     
     }
@@ -198,27 +271,27 @@ control MyEgress(inout headers hdr,
 *************   C H E C K S U M    C O M P U T A T I O N   **************
 *************************************************************************/
 
-control MyComputeChecksum(inout headers  hdr, inout metadata meta) {
+control MyComputeChecksum(inout headers hdr, inout metadata meta) {
 
     /* TODO 3.6 Uncomment to update the checksum field once the ttl changes.  */
-
-    //apply {
-    //    update_checksum(
-	//        hdr.ipv4.isValid(),
-    //        { hdr.ipv4.version,
-	//          hdr.ipv4.ihl,
-    //          hdr.ipv4.diffserv,
-    //          hdr.ipv4.totalLen,
-    //          hdr.ipv4.identification,
-    //          hdr.ipv4.flags,
-    //          hdr.ipv4.fragOffset,
-    //          hdr.ipv4.ttl,
-    //          hdr.ipv4.protocol,
-    //          hdr.ipv4.srcAddr,
-    //          hdr.ipv4.dstAddr },
-    //          hdr.ipv4.hdrChecksum,
-    //          HashAlgorithm.csum16);
-    //}
+    apply {
+        update_checksum(
+	        hdr.ipv4.isValid(),
+            { hdr.ipv4.version,
+	          hdr.ipv4.ihl,
+              hdr.ipv4.diffserv,
+              hdr.ipv4.totalLen,
+              hdr.ipv4.identification,
+              hdr.ipv4.flags,
+              hdr.ipv4.fragOffset,
+              hdr.ipv4.ttl,
+              hdr.ipv4.protocol,
+              hdr.ipv4.srcAddr,
+              hdr.ipv4.dstAddr },
+            hdr.ipv4.hdrChecksum,
+            HashAlgorithm.csum16
+        );
+    }
 }
 
 /*************************************************************************
