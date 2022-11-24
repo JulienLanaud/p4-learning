@@ -1,1 +1,4 @@
 # Add your static control plane commands here
+table_add ipv4_lpm set_nhop 10.0.6.2/32 => 00:00:00:06:02:00 2
+
+table_add ipv4_lpm set_nhop 10.0.1.1/32 => 00:00:00:01:02:00 1

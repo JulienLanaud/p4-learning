@@ -3,6 +3,7 @@
 *************************************************************************/
 
 const bit<16> TYPE_IPV4 = 0x800;
+const bit<8> IPV4_PROT_TCP = 6;
 
 typedef bit<9>  egressSpec_t;
 typedef bit<48> macAddr_t;
@@ -59,6 +60,8 @@ struct headers {
 
 struct metadata {
    //TODO 6.1: define the metadata needed to store the ecmp_group_id and the hash output
+   bit<14> ecmp_hash;
+   bit <14> ecmp_group_id;
 }
 
 
